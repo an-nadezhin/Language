@@ -3,4 +3,4 @@ project(Language)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(Language Language.cpp Language.h)
+add_executable(Language Language.cpp Compiler.cpp)
