@@ -24,6 +24,8 @@ extern char id_val[BUF_LENGTH];
 extern int amount_of_labels;
 
 
+
+
 enum Lex {
     L_WHILE,
     L_IF,
@@ -275,7 +277,11 @@ public:
 
     char* name();
 
-int label_r();
+    int am_var();
+
+    int ret_par();
+
+    int label_r();
 
 private:
     char *name_of_fun;
@@ -306,20 +312,23 @@ private:
 
 class Call : public Expression {
 public:
-    Call(Definition_fun *, Expression *, Expression *, Expression *);
+    Call(Definition_fun *);
 
     void print_dot_name(FILE *code, Priority pr);
 
     void print_dot(FILE *code);
 
+    void add_arg(Expression*);
+
     void print_asm_code (FILE *code);
 
 private:
     Definition_fun *fun_def;
-    Expression *arg;
-    Expression *arg2;
-    Expression *arg3;
+   std::list<Expression *> args;
 };
+
+
+extern Definition_fun *cur_fun;
 
 extern Root *root;
 

@@ -1,16 +1,18 @@
 #include "Language.h"
 
-
 Definition_fun *cur_fun;
+
 
 Root *root;
 
 int main() {
     const char *buf1 = "if(a < b) {a = -a;\n} return a;";
     const char *buf2 = "while(a > 0) {a = a - 1; b = b + 1;} return b;";
-    const char *buf3 = "double myfunc(double p, double i, double c) {while(p > 0) {p = p - 1; i = i + 1;} return i;}";
-    const char *buf = "double myfunc(double p, double i, double c) {while(p > 0) {p = p - 1; i = i + 1;} return i;} "
-            "double main(double a, double b, double c) {return myfunc(3, 6, 5);}";
+    const char *buf6 = "double myfunc(double p, double i, double c) {while(p > 0) {p = p - 1; i = i + 1;} return i;}";
+    const char *buf = "double myfunc(double p, double i) {while(p > 0) {p = p - 1; i = i + 1;} return i;} "
+            "double main(double a, double b, double c) {return myfunc(3, 6);}";
+
+    const char *buf5 = "double func(double a, double b, double c) {b = a + c; return b;}";
 
     Root *node_1 = GetG0(buf);
 
@@ -142,18 +144,14 @@ Definition_fun *GetF() {
         error("argname expected");
     cur_fun->add_var(id_val);
     next();
-    expect(L_COMMA);
-    expect(L_DOUBLE);
-    if (lex != L_ID)
-        error("argname expected");
-    cur_fun->add_var(id_val);
-    next();
-    expect(L_COMMA);
-    expect(L_DOUBLE);
-    if (lex != L_ID)
-        error("argname expected");
-    cur_fun->add_var(id_val);
-    next();
+    while (lex == L_COMMA) {
+        next();
+        expect(L_DOUBLE);
+        if (lex != L_ID)
+            error("argname expected");
+        cur_fun->add_var(id_val);
+        next();
+    }
     expect(L_RPAR);
     expect(L_LBRA);
     while (lex != L_RBRA)
@@ -323,16 +321,17 @@ Expression *GetP() {
             next();
             if (lex == L_LPAR) {
                 next();
-                Definition_fun * fun = root->find_fun(id_val);
+                Definition_fun *fun = root->find_fun(id_val);
                 if (!fun)
                     error("unknown variable");
-                val = GetE();
-                expect(L_COMMA);
-                Expression *val2 = GetE();
-                expect(L_COMMA);
-                Expression *val3 = GetE();
+                Call *val_C = new Call(fun);
+                val_C->add_arg(GetE());
+                for (int i = 0; i < fun->ret_par() - 1; i++) {
+                    expect(L_COMMA);
+                    val_C->add_arg(GetE());
+                }
                 expect(L_RPAR);
-                val = new Call(fun, val, val2, val3);
+                val = val_C;
             } else {
                 Definition_var *var = cur_fun->find_var(id_val);
                 if (!var)
@@ -346,11 +345,8 @@ Expression *GetP() {
     }
 }
 
-Call::Call(Definition_fun *str, Expression *node, Expression *node1, Expression *node2) {
+Call::Call(Definition_fun *str) {
     fun_def = str;
-    arg = node;
-    arg2 = node1;
-    arg3 = node2;
 }
 
 ASSIGN::ASSIGN(Definition_var *name, Expression *argumR) {
@@ -368,6 +364,9 @@ Relation::Relation(int type, Expression *node_1, Expression *node_2) {
     node2 = node_2;
 }
 
+void Call::add_arg(Expression *arg) {
+    args.push_back(arg);
+}
 
 Definition_var::Definition_var(char *name, int position) {
     name_of_var = strdup(name);
@@ -417,7 +416,7 @@ Definition_fun *Root::find_fun(char *name) {
 }
 
 
-void Root::add_fun(Definition_fun * func) {
+void Root::add_fun(Definition_fun *func) {
     if (find_fun(func->name()))
         error("such var name is already used");
     funs.push_back(func);
@@ -504,30 +503,17 @@ void Operator_un::print_dot(FILE *code) {
 }
 
 void Call::print_dot(FILE *code) {
-    fprintf(code, "\"");
-    print_dot_name(code, PR_E);
-    fprintf(code, "\"->\"");
-    arg->print_dot_name(code, PR_E);
-    fprintf(code, "\"\n");
-    arg->print_dot(code);
-
-    fprintf(code, "\"");
-    print_dot_name(code, PR_E);
-    fprintf(code, "\"->\"");
-    arg2->print_dot_name(code, PR_E);
-    fprintf(code, "\"\n");
-    arg2->print_dot(code);
-
-    fprintf(code, "\"");
-    print_dot_name(code, PR_E);
-    fprintf(code, "\"->\"");
-    arg3->print_dot_name(code, PR_E);
-    fprintf(code, "\"\n");
-    arg3->print_dot(code);
+    std::list<Expression *>::const_iterator iterator;
+    for (iterator = args.begin(); iterator != args.end(); ++iterator) {
+        Expression *arg = *iterator;
+        fprintf(code, "\"");
+        print_dot_name(code, PR_E);
+        fprintf(code, "\"->\"");
+        arg->print_dot_name(code, PR_E);
+        fprintf(code, "\"\n");
+        arg->print_dot(code);
+    }
 }
-
-
-
 
 
 void Operator_bin::print_dot(FILE *code) {
@@ -653,6 +639,15 @@ Number::Number(double val) {
     num_valN = val;
 }
 
+int Definition_fun::am_var() {
+    return vars.size();
+}
+
+int Definition_fun::ret_par() {
+    return vars.size();
+}
+
+
 Operator_un::Operator_un(int val, Expression *arg) {
     assert(val == L_SIN || val == L_MINUS || val == L_COS || val == L_SQRT || val == L_LN);
     assert(arg != nullptr);
@@ -683,13 +678,13 @@ void Node::print_dot(FILE *code) {
 void Call::print_dot_name(FILE *code, Priority pr) {
     fprintf(code, "%s", fun_def->name());
     fprintf(code, "(");
-    arg->print_dot_name(code, PR_E);
-    fprintf(code, ",");
-    arg2->print_dot_name(code, PR_E);
-    fprintf(code, ",");
-    arg3->print_dot_name(code, PR_E);
+    std::list<Expression *>::const_iterator iterator;
+    for (iterator = args.begin(); iterator != args.end(); ++iterator) {
+        Expression *arg = *iterator;
+        arg->print_dot_name(code, PR_E);
+        fprintf(code, ",");
+    }
     fprintf(code, ")");
-
 }
 
 int Definition_fun::label_r() {
