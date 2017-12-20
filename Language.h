@@ -23,9 +23,6 @@ extern char id_val[BUF_LENGTH];
 
 extern int amount_of_labels;
 
-
-
-
 enum Lex {
     L_WHILE,
     L_IF,
@@ -57,16 +54,15 @@ enum Lex {
     L_SEMICOLON,
     L_VAR,
     L_DOUBLE,
-    L_COMMA
+    L_COMMA,
+    L_PRINT
 };
 
 enum Priority {
     PR_E, PR_T, PR_D, PR_P
 };
 
-
 extern Lex lex;
-
 
 class Node {
 public:
@@ -76,9 +72,6 @@ public:
 
 };
 
-
-
-
 class Definition_var : public Node {
 public:
     Definition_var(char *, int);
@@ -86,11 +79,11 @@ public:
     char *name();
 
     int address();
+
 private:
     char *name_of_var;
     int pos;
 };
-
 
 class Statement : public Node {
 public:
@@ -130,6 +123,20 @@ private:
     int type_op;
     Expression *node1;
     Expression *node2;
+};
+
+class Print : public Statement {
+public:
+    Print(Expression *);
+
+    void print_dot(FILE *code);
+
+    void print_dot_name(FILE *code);
+
+    void print_asm_code(FILE *code);
+
+private:
+    Expression *arg;
 };
 
 class Return : public Statement {
@@ -191,7 +198,6 @@ private:
     std::list<Statement *> stmts;
 
 };
-
 
 class Variable : public Expression {
 public:
@@ -258,12 +264,11 @@ private:
     Expression *arg_s;
 };
 
-
 class Definition_fun : public Node {
 public:
     Definition_fun(char *, int);
 
-    void add_var(char *);
+    void add_var(char *, bool);
 
     void add_stmt(Statement *);
 
@@ -275,7 +280,7 @@ public:
 
     void print_dot_name(FILE *code);
 
-    char* name();
+    char *name();
 
     int am_var();
 
@@ -288,14 +293,15 @@ private:
     std::list<Definition_var *> vars;
     std::list<Statement *> stmts;
     int label;
+    int am_parametrs;
+
 };
 
-
-class Root: public  Node {
+class Root : public Node {
 public:
     Root();
 
-    Definition_fun *find_fun(char*);
+    Definition_fun *find_fun(char *);
 
     void add_fun(Definition_fun *);
 
@@ -309,7 +315,6 @@ private:
     std::list<Definition_fun *> funs;
 };
 
-
 class Call : public Expression {
 public:
     Call(Definition_fun *);
@@ -318,15 +323,14 @@ public:
 
     void print_dot(FILE *code);
 
-    void add_arg(Expression*);
+    void add_arg(Expression *);
 
-    void print_asm_code (FILE *code);
+    void print_asm_code(FILE *code);
 
 private:
     Definition_fun *fun_def;
-   std::list<Expression *> args;
+    std::list<Expression *> args;
 };
-
 
 extern Definition_fun *cur_fun;
 
@@ -357,9 +361,6 @@ Lex next();
 void expect(Lex expected);
 
 void error(const char *er);
-
-void Compiler(Expression *tree);
-
 
 void Code_generator(Root *tree);
 

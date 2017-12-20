@@ -4,7 +4,6 @@
 
 #include "Language.h"
 
-//const int BUF_LENGTH = 50;
 
 const char *s = NULL;
 
@@ -22,12 +21,12 @@ int stack_deeps;
 
 void Code_generator(Root *tree) {
 
-    FILE * asm_code = fopen ("asm_code.asm", "w");
+    FILE *asm_code = fopen("asm_code.asm", "w");
 
     tree->print_asm_code(asm_code);
 }
 
-void Number::print_asm_code(FILE * asm_code) {
+void Number::print_asm_code(FILE *asm_code) {
     fprintf(asm_code, "push %lg\n", num_valN);
     stack_deeps++;
 }
@@ -62,7 +61,7 @@ void Operator_bin::print_asm_code(FILE *code) {
             fprintf(code, "pow\n");
             break;
     }
-stack_deeps--;
+    stack_deeps--;
 }
 
 void Operator_un::print_asm_code(FILE *code) {
@@ -78,17 +77,17 @@ void Operator_un::print_asm_code(FILE *code) {
     arg_f->print_asm_code(code);
     switch (type_un_op) {
         case L_SIN :
-            fprintf(code, "sin");
+            fprintf(code, "sin\n");
             break;
         case L_COS :
-            fprintf(code, "cos");
+            fprintf(code, "cos\n");
             break;
         case L_SQRT :
-            fprintf(code, "sqrt");
+            fprintf(code, "sqrt\n");
             break;
         case L_LN:
-            fprintf(code, "ln");
-        break;
+            fprintf(code, "ln\n");
+            break;
     }
 }
 
@@ -102,7 +101,15 @@ void Return::print_asm_code(FILE *code) {
 }
 
 
-void Statement::print_asm_code(FILE *code){
+void Print::print_asm_code(FILE *code) {
+    assert(stack_deeps == cur_fun->am_var());
+    arg->print_asm_code(code);
+    assert(stack_deeps == cur_fun->am_var() + 1);
+    fprintf(code, "out\n");
+    stack_deeps = cur_fun->am_var();
+}
+
+void Statement::print_asm_code(FILE *code) {
     assert(0);
 }
 
@@ -120,6 +127,8 @@ void Definition_fun::print_asm_code(FILE *code) {
     stack_deeps = am_var();
     cur_fun = this;
     fprintf(code, "%d:\n", label);
+    for (int i = 0; i < am_var() - am_parametrs; i++)
+        fprintf(code, "push 0\n");
     std::list<Statement *>::const_iterator iterator;
     for (iterator = stmts.begin(); iterator != stmts.end(); ++iterator) {
         Statement *stmt = *iterator;
@@ -137,10 +146,10 @@ int Relation::print_asm_code(FILE *code) {
     assert(stack_deeps == cur_fun->am_var() + 2);
     switch (type_op) {
         case L_NE:
-            fprintf(code, "jne %d$\n", amount_of_labels);
+            fprintf(code, "je %d$\n", amount_of_labels);
             break;
         case L_EQ:
-            fprintf(code, "je %d$\n", amount_of_labels);
+            fprintf(code, "jne %d$\n", amount_of_labels);
             break;
         case L_GE:
             fprintf(code, "jb %d$\n", amount_of_labels);
@@ -195,7 +204,7 @@ void Root::print_asm_code(FILE *code) {
 
 }
 
-void Call::print_asm_code (FILE *code) {
+void Call::print_asm_code(FILE *code) {
     std::list<Expression *>::const_iterator iterator;
     for (iterator = args.begin(); iterator != args.end(); ++iterator) {
         Expression *arg = *iterator;
